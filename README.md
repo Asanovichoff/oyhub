@@ -9,6 +9,8 @@ Engineers using AI assistants hit two walls: skills scattered across projects wi
 - **Loop engineering in the background.** A curator loop runs on idle: archives stale skills (never deletes — archive is recoverable), dedupes memory entries, pins protect anything you care about, and every action is logged to a `Curator Log.md` note in your vault so the loop's work stays visible.
 - **Injection-scanned writes.** Memory and skills persist into every future session's context, so anything flowing into them is scanned at write time — instruction-override phrasing and credential-exfil link shapes are refused with a reason. Legitimate engineering content (curl commands, env var names) passes.
 - **Safe under concurrent clients.** Multiple assistants can run OyHub against the same state simultaneously: SQLite runs in WAL mode with busy timeouts, and all shared JSON/markdown writes go through file-locked atomic read-modify-write.
+- **Web dashboard + REST API.** `oyhub dashboard` serves a local **FastAPI** app: skill usage stats, memory browser, full-text session search, curator log — plus a JSON API for scripting against your hub.
+- **Observability built in.** Every tool call is recorded (tool, latency, status) in the shared SQLite DB; the dashboard exposes a **Prometheus** `/metrics` endpoint, and `docker compose --profile observability up` starts a provisioned **Grafana** with a ready-made OyHub dashboard (call rates, latencies, error rates).
 - **CI/CD + Docker from day one.** GitHub Actions runs lint + tests on a 6-way OS/Python matrix, builds the Docker image, cuts a GitHub release on every version tag, and publishes to PyPI via trusted publishing.
 
 Zero runtime dependencies — Python stdlib only. No API key: the connected assistant is the intelligence; OyHub is the harness.
@@ -64,6 +66,22 @@ docker compose run --rm oyhub          # stdio MCP server
 docker compose run --rm --entrypoint python oyhub -m oyhub doctor
 ```
 
+### Dashboard & observability
+
+```bash
+pip install "oyhub[dashboard]"
+oyhub dashboard                        # web UI + API at http://127.0.0.1:8400
+```
+
+Full observability stack (dashboard + Prometheus + Grafana, pre-provisioned):
+
+```bash
+docker compose --profile observability up
+# dashboard http://localhost:8400 · prometheus http://localhost:9090 · grafana http://localhost:3000
+```
+
+The core MCP server stays dependency-free — FastAPI/uvicorn are an optional extra used only by the dashboard process.
+
 ## The tools it exposes
 
 | Tool | What it does |
@@ -103,7 +121,7 @@ pip install -e ".[dev]"
 ruff check oyhub tests && pytest tests/ -q   # what CI runs
 ```
 
-22 tests, all offline — including concurrency tests (parallel writers, no lost updates) and injection-guard tests. CI matrix: Ubuntu + macOS × Python 3.10–3.12, plus a Docker build + smoke test. Tag `v*` to cut a GitHub release and publish to PyPI (trusted publishing — configure once under PyPI → Publishing).
+25 tests, all offline — including concurrency tests (parallel writers, no lost updates), injection-guard tests, and dashboard API tests. CI matrix: Ubuntu + macOS × Python 3.10–3.12, plus a Docker build + smoke test. Tag `v*` to cut a GitHub release and publish to PyPI (trusted publishing — configure once under PyPI → Publishing).
 
 ## Roadmap
 

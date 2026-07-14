@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 from typing import Any, Callable
 
 from . import __version__
@@ -17,6 +18,7 @@ from .config import HubConfig
 from .curator import Curator
 from .memory import SessionStore, VaultMemory
 from .skills import SkillStore
+from .telemetry import Telemetry
 
 PROTOCOL_VERSION = "2024-11-05"
 
@@ -44,6 +46,7 @@ class Hub:
         self.vault = VaultMemory(self.cfg)
         self.sessions = SessionStore(self.cfg)
         self.curator = Curator(self.cfg, self.skills, self.vault)
+        self.telemetry = Telemetry(self.cfg.db_path)
         self.active_project = ""
 
     # ---- tool registry -------------------------------------------------------
@@ -138,7 +141,15 @@ class Hub:
         }
         if name not in handlers:
             raise ValueError(f"unknown tool: {name}")
-        result = handlers[name](args)
+        start = time.perf_counter()
+        try:
+            result = handlers[name](args)
+        except Exception:
+            self.telemetry.record(
+                name, ok=False, duration_ms=(time.perf_counter() - start) * 1000)
+            raise
+        self.telemetry.record(
+            name, ok=True, duration_ms=(time.perf_counter() - start) * 1000)
         # Idle-triggered background loop: every tool call is a chance for the
         # curator to catch up (cheap due-check, full run only when interval hit).
         if name != "curator_run":

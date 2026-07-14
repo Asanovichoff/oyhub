@@ -9,4 +9,4 @@ Fixes two problems:
   2. Context exhaustion — knowledge lost when the context window fills up.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

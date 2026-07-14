@@ -1,6 +1,6 @@
 [project]
 name = "oyhub"
-version = "0.2.0"
+version = "0.3.0"
 description = "Local agent harness: central skill library, Obsidian + SQLite FTS5 memory, background curator — served over MCP."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -29,7 +29,8 @@ Issues = "https://github.com/Asanovichoff/oyhub/issues"
 oyhub = "oyhub.__main__:main"
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+dashboard = ["fastapi>=0.110", "uvicorn>=0.29"]
+dev = ["pytest", "ruff", "fastapi>=0.110", "uvicorn>=0.29", "httpx"]
 
 [build-system]
 requires = ["setuptools>=68"]

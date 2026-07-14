@@ -8,6 +8,43 @@ services:
       # - ~/Documents/MyVault:/data/vault
       - oyhub-vault:/data/vault
 
+  # --- observability profile: docker compose --profile observability up ---
+
+  dashboard:
+    build: .
+    entrypoint: ["python", "-m", "oyhub", "dashboard", "--host", "0.0.0.0"]
+    ports:
+      - "8400:8400"
+    volumes:
+      - oyhub-data:/data/hub
+      - oyhub-vault:/data/vault
+    profiles: [observability]
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on: [dashboard]
+    profiles: [observability]
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on: [prometheus]
+    profiles: [observability]
+
 volumes:
   oyhub-data:
   oyhub-vault:
+  prometheus-data:
+  grafana-data:
