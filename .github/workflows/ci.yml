@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 jobs:
@@ -36,7 +37,7 @@ jobs:
         run: docker run --rm --entrypoint python oyhub:ci -m oyhub doctor
 
   release:
-    # Tag a version (git tag v0.1.0 && git push --tags) to cut a GitHub release.
+    # Tag a version (git tag v0.2.0 && git push --tags) to cut a GitHub release.
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     needs: [test, docker]
@@ -47,3 +48,24 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+
+  publish:
+    # Publishes to PyPI via trusted publishing (no API token in secrets).
+    # One-time setup: pypi.org → your project → Publishing → add GitHub
+    # publisher (owner: Asanovichoff, repo: oyhub, workflow: ci.yml,
+    # environment: pypi).
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: [test, docker]
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build distribution
+        run: pip install build && python -m build
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

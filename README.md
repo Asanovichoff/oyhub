@@ -7,7 +7,9 @@ Engineers using AI assistants hit two walls: skills scattered across projects wi
 - **One central skill library** with per-project activation. Skills live in `~/.oyhub/skills` (agentskills.io-compatible `SKILL.md` format). Activate a project and only its relevant skills appear — your Kubernetes skills stay out of your React sessions.
 - **Persistent memory that survives any context window.** Curated facts go to your **Obsidian vault** as plain markdown (human-readable, editable, graph-linked). Full conversation history goes to **SQLite + FTS5** — full-text searchable recall at zero LLM cost. Instead of context running out, the assistant *retrieves* the five messages that matter.
 - **Loop engineering in the background.** A curator loop runs on idle: archives stale skills (never deletes — archive is recoverable), dedupes memory entries, pins protect anything you care about, and every action is logged to a `Curator Log.md` note in your vault so the loop's work stays visible.
-- **CI/CD + Docker from day one.** GitHub Actions runs lint + tests on a 6-way OS/Python matrix, builds the Docker image, and cuts a release on every version tag.
+- **Injection-scanned writes.** Memory and skills persist into every future session's context, so anything flowing into them is scanned at write time — instruction-override phrasing and credential-exfil link shapes are refused with a reason. Legitimate engineering content (curl commands, env var names) passes.
+- **Safe under concurrent clients.** Multiple assistants can run OyHub against the same state simultaneously: SQLite runs in WAL mode with busy timeouts, and all shared JSON/markdown writes go through file-locked atomic read-modify-write.
+- **CI/CD + Docker from day one.** GitHub Actions runs lint + tests on a 6-way OS/Python matrix, builds the Docker image, cuts a GitHub release on every version tag, and publishes to PyPI via trusted publishing.
 
 Zero runtime dependencies — Python stdlib only. No API key: the connected assistant is the intelligence; OyHub is the harness.
 
@@ -101,7 +103,7 @@ pip install -e ".[dev]"
 ruff check oyhub tests && pytest tests/ -q   # what CI runs
 ```
 
-15 tests, all offline. CI matrix: Ubuntu + macOS × Python 3.10–3.12, plus a Docker build + smoke test. Tag `v*` to cut a GitHub release.
+22 tests, all offline — including concurrency tests (parallel writers, no lost updates) and injection-guard tests. CI matrix: Ubuntu + macOS × Python 3.10–3.12, plus a Docker build + smoke test. Tag `v*` to cut a GitHub release and publish to PyPI (trusted publishing — configure once under PyPI → Publishing).
 
 ## Roadmap
 

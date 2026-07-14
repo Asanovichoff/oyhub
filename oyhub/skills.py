@@ -15,7 +15,6 @@ The fix for skill sprawl:
 
 from __future__ import annotations
 
-import json
 import re
 import shutil
 import time
@@ -24,6 +23,8 @@ from pathlib import Path
 from typing import Optional
 
 from .config import HubConfig
+from .guard import first_threat
+from .locks import read_json, update_json
 
 DESCRIPTION_LIMIT = 60
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
@@ -88,6 +89,12 @@ class SkillStore:
                 f"description is {len(description)} chars; hard cap is "
                 f"{DESCRIPTION_LIMIT}. Anything longer gets truncated in the "
                 f"index and never routes — shorten it."
+            )
+        threat = first_threat(f"{description}\n{body}")
+        if threat:
+            raise ValueError(
+                f"skill blocked: {threat}. Skill bodies load into future "
+                f"context windows, so injection-style content cannot persist."
             )
         skill = Skill(name=name, description=description,
                       tags=sorted(set(tags or [])), body=body)
@@ -160,10 +167,14 @@ class SkillStore:
 
     def set_project(self, project: str, tags: list[str],
                     description: str = "") -> dict:
-        data = self._read_projects()
-        data[project] = {"tags": sorted(set(tags)), "description": description}
-        self.cfg.projects_file.write_text(json.dumps(data, indent=2))
-        return data[project]
+        profile = {"tags": sorted(set(tags)), "description": description}
+
+        def _set(data: dict) -> dict:
+            data[project] = profile
+            return data
+
+        update_json(self.cfg.projects_file, {}, _set)
+        return profile
 
     def get_project(self, project: str) -> Optional[dict]:
         return self._read_projects().get(project)
@@ -172,9 +183,7 @@ class SkillStore:
         return self._read_projects()
 
     def _read_projects(self) -> dict:
-        if self.cfg.projects_file.exists():
-            return json.loads(self.cfg.projects_file.read_text())
-        return {}
+        return read_json(self.cfg.projects_file, {})
 
     # -- usage tracking (feeds the curator) --------------------------------------
 
@@ -182,13 +191,14 @@ class SkillStore:
         return self.cfg.home / "skill_usage.json"
 
     def usage(self) -> dict:
-        f = self._usage_file()
-        return json.loads(f.read_text()) if f.exists() else {}
+        return read_json(self._usage_file(), {})
 
     def _touch_usage(self, name: str) -> None:
-        data = self.usage()
-        rec = data.get(name, {"use_count": 0})
-        rec["use_count"] = rec.get("use_count", 0) + 1
-        rec["last_used"] = time.time()
-        data[name] = rec
-        self._usage_file().write_text(json.dumps(data, indent=2))
+        def _touch(data: dict) -> dict:
+            rec = data.get(name, {"use_count": 0})
+            rec["use_count"] = rec.get("use_count", 0) + 1
+            rec["last_used"] = time.time()
+            data[name] = rec
+            return data
+
+        update_json(self._usage_file(), {}, _touch)

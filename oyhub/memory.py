@@ -24,6 +24,8 @@ from pathlib import Path
 from typing import Optional
 
 from .config import HubConfig
+from .guard import first_threat
+from .locks import locked
 
 _GLOBAL_NOTE = "Global.md"
 
@@ -62,15 +64,24 @@ class VaultMemory:
 
     def add(self, entry: str, project: Optional[str] = None) -> str:
         entry = " ".join(entry.split())
+        threat = first_threat(entry)
+        if threat:
+            raise ValueError(
+                f"memory blocked: {threat}. Memory persists into every future "
+                f"session's context, so this content cannot be stored."
+            )
         path = self._note_path(project)
-        existing = path.read_text(encoding="utf-8") if path.exists() else ""
-        if entry.lower() in existing.lower():
-            return "duplicate — already remembered"
-        stamp = _dt.date.today().isoformat()
-        with path.open("a", encoding="utf-8") as f:
-            if existing and not existing.endswith("\n"):
-                f.write("\n")
-            f.write(f"- {entry} *({stamp})*\n")
+        # Lock: two clients appending concurrently must not interleave writes
+        # or double-save past each other's dedupe check.
+        with locked(path):
+            existing = path.read_text(encoding="utf-8") if path.exists() else ""
+            if entry.lower() in existing.lower():
+                return "duplicate — already remembered"
+            stamp = _dt.date.today().isoformat()
+            with path.open("a", encoding="utf-8") as f:
+                if existing and not existing.endswith("\n"):
+                    f.write("\n")
+                f.write(f"- {entry} *({stamp})*\n")
         return f"saved to {path.name}"
 
     def snapshot(self, project: str = "") -> Snapshot:
@@ -128,7 +139,12 @@ class SessionStore:
         self.db_path = cfg.db_path
 
     def _conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=10.0)
+        # WAL: concurrent readers + one writer across processes (multiple MCP
+        # clients share this DB). busy_timeout makes writers queue instead of
+        # failing fast with "database is locked".
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=10000")
         conn.executescript(_SCHEMA)
         return conn
 

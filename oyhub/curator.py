@@ -13,11 +13,11 @@ LLM calls in the MVP — pure policy, borrowed from Hermes' curator invariants:
 from __future__ import annotations
 
 import datetime as _dt
-import json
 import time
 from dataclasses import dataclass, field
 
 from .config import HubConfig
+from .locks import read_json, update_json
 from .memory import VaultMemory
 from .skills import SkillStore
 
@@ -66,11 +66,11 @@ class Curator:
         return report
 
     def pin(self, skill_name: str) -> None:
-        state = self._read_state()
-        pinned = set(state.get("pinned", []))
-        pinned.add(skill_name)
-        state["pinned"] = sorted(pinned)
-        self.cfg.state_file.write_text(json.dumps(state, indent=2))
+        def _pin(state: dict) -> dict:
+            state["pinned"] = sorted(set(state.get("pinned", [])) | {skill_name})
+            return state
+
+        update_json(self.cfg.state_file, {}, _pin)
 
     def pinned(self) -> set[str]:
         return set(self._read_state().get("pinned", []))
@@ -118,13 +118,14 @@ class Curator:
     # -- bookkeeping --------------------------------------------------------------
 
     def _read_state(self) -> dict:
-        f = self.cfg.state_file
-        return json.loads(f.read_text()) if f.exists() else {}
+        return read_json(self.cfg.state_file, {})
 
     def _write_state(self) -> None:
-        state = self._read_state()
-        state["curator_last_run"] = time.time()
-        self.cfg.state_file.write_text(json.dumps(state, indent=2))
+        def _stamp(state: dict) -> dict:
+            state["curator_last_run"] = time.time()
+            return state
+
+        update_json(self.cfg.state_file, {}, _stamp)
 
     def _log_to_vault(self, report: CuratorReport) -> None:
         path = self.vault.dir / "Curator Log.md"
