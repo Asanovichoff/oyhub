@@ -9,16 +9,9 @@ services:
       - oyhub-vault:/data/vault
 
   # --- observability profile: docker compose --profile observability up ---
-
-  dashboard:
-    build: .
-    entrypoint: ["python", "-m", "oyhub", "dashboard", "--host", "0.0.0.0"]
-    ports:
-      - "8400:8400"
-    volumes:
-      - oyhub-data:/data/hub
-      - oyhub-vault:/data/vault
-    profiles: [observability]
+  # The dashboard itself runs on the HOST (`oyhub dashboard`) so it reads the
+  # live SQLite state directly — WAL over Docker bind mounts is unreliable.
+  # Prometheus scrapes it via host.docker.internal.
 
   prometheus:
     image: prom/prometheus:latest
@@ -27,7 +20,8 @@ services:
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
-    depends_on: [dashboard]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # needed on Linux; harmless on macOS
     profiles: [observability]
 
   grafana:

@@ -1,6 +1,14 @@
 # OyHub
 
+[![CI](https://github.com/Asanovichoff/oyhub/actions/workflows/ci.yml/badge.svg)](https://github.com/Asanovichoff/oyhub/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/oyhub)](https://pypi.org/project/oyhub/)
+[![Python](https://img.shields.io/pypi/pyversions/oyhub)](https://pypi.org/project/oyhub/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 **A local, always-on agent harness that fixes skill sprawl and context exhaustion.**
+
+![Grafana observability](assets/grafana.png)
+![OyHub dashboard](assets/dashboard.png)
 
 Engineers using AI assistants hit two walls: skills scattered across projects with nothing organized in one place, and context windows that fill up and forget everything between sessions. OyHub is an MCP server you install once on your machine — Claude Desktop, Claude Code, and Cursor connect to it and gain:
 
@@ -73,14 +81,25 @@ pip install "oyhub[dashboard]"
 oyhub dashboard                        # web UI + API at http://127.0.0.1:8400
 ```
 
-Full observability stack (dashboard + Prometheus + Grafana, pre-provisioned):
+Full observability stack (Prometheus + Grafana, pre-provisioned):
 
 ```bash
-docker compose --profile observability up
+oyhub dashboard &                            # runs on the host, next to the data
+docker compose --profile observability up -d # Prometheus + Grafana in containers
 # dashboard http://localhost:8400 · prometheus http://localhost:9090 · grafana http://localhost:3000
 ```
 
+The dashboard deliberately runs on the host rather than in Docker: it reads the
+live SQLite state, and SQLite WAL locking is unreliable across Docker bind
+mounts. Prometheus scrapes it via `host.docker.internal`.
+
 The core MCP server stays dependency-free — FastAPI/uvicorn are an optional extra used only by the dashboard process.
+
+To populate the dashboards with realistic data (e.g. before a screenshot):
+
+```bash
+python3 scripts/demo_traffic.py --calls 300
+```
 
 ## The tools it exposes
 

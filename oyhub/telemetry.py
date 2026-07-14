@@ -54,11 +54,14 @@ class Telemetry:
     # -- read path (dashboard) ------------------------------------------------
 
     def tool_stats(self) -> list[dict]:
-        with self._conn() as conn:
-            rows = conn.execute(
-                "SELECT tool, ok, COUNT(*), SUM(duration_ms), AVG(duration_ms) "
-                "FROM tool_calls GROUP BY tool, ok ORDER BY tool"
-            ).fetchall()
+        try:
+            with self._conn() as conn:
+                rows = conn.execute(
+                    "SELECT tool, ok, COUNT(*), SUM(duration_ms), AVG(duration_ms) "
+                    "FROM tool_calls GROUP BY tool, ok ORDER BY tool"
+                ).fetchall()
+        except sqlite3.Error:
+            return []  # read path fails soft — a scrape must never 500
         return [
             {"tool": t, "status": "ok" if ok else "error", "calls": n,
              "total_ms": total or 0.0, "avg_ms": round(avg or 0.0, 2)}
@@ -67,10 +70,13 @@ class Telemetry:
 
     def calls_last_hours(self, hours: int = 24) -> int:
         cutoff = time.time() - hours * 3600
-        with self._conn() as conn:
-            (n,) = conn.execute(
-                "SELECT COUNT(*) FROM tool_calls WHERE ts >= ?", (cutoff,)
-            ).fetchone()
+        try:
+            with self._conn() as conn:
+                (n,) = conn.execute(
+                    "SELECT COUNT(*) FROM tool_calls WHERE ts >= ?", (cutoff,)
+                ).fetchone()
+        except sqlite3.Error:
+            return 0
         return n
 
 

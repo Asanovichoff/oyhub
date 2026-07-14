@@ -4,4 +4,6 @@ global:
 scrape_configs:
   - job_name: oyhub
     static_configs:
-      - targets: ["dashboard:8400"]
+      # The dashboard runs on the HOST (next to the SQLite data) — SQLite WAL
+      # over Docker bind mounts is unreliable, so don't containerize the reader.
+      - targets: ["host.docker.internal:8400"]
