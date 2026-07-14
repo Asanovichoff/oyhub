@@ -1,0 +1,24 @@
+[project]
+name = "oyhub"
+version = "0.1.0"
+description = "Local agent harness: central skill library, Obsidian + SQLite FTS5 memory, background curator — served over MCP."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = []
+
+[project.scripts]
+oyhub = "oyhub.__main__:main"
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["oyhub*"]
+
+[tool.ruff]
+line-length = 100

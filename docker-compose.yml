@@ -1,0 +1,13 @@
+services:
+  oyhub:
+    build: .
+    stdin_open: true   # MCP speaks over stdio
+    volumes:
+      - oyhub-data:/data/hub
+      # Point at your real Obsidian vault to see memory notes in Obsidian:
+      # - ~/Documents/MyVault:/data/vault
+      - oyhub-vault:/data/vault
+
+volumes:
+  oyhub-data:
+  oyhub-vault:
