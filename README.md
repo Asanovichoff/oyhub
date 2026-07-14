@@ -34,18 +34,26 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
     "oyhub": {
       "command": "python3",
       "args": ["-m", "oyhub"],
-      "cwd": "/path/to/oyhub",
-      "env": { "OYHUB_VAULT": "/Users/you/Documents/MyVault" }
+      "env": {
+        "PYTHONPATH": "/path/to/oyhub",
+        "OYHUB_VAULT": "/Users/you/Documents/MyVault"
+      }
     }
   }
 }
 ```
 
+> **Note:** Claude Desktop ignores a `cwd` field — `PYTHONPATH` is what makes
+> `python3 -m oyhub` importable. Alternatively, `pip3 install -e /path/to/oyhub`
+> once, then use `"command": "oyhub"` with no `args` or `PYTHONPATH`.
+
 ### Connect Claude Code
 
 ```bash
-claude mcp add oyhub -- python3 -m oyhub
+claude mcp add oyhub --env PYTHONPATH=/path/to/oyhub --env OYHUB_VAULT=~/Documents/MyVault -- python3 -m oyhub
 ```
+
+Or after `pip3 install -e /path/to/oyhub`: `claude mcp add oyhub -- oyhub`
 
 ### Docker
 
