@@ -14,7 +14,7 @@ Zero runtime dependencies — Python stdlib only. No API key: the connected assi
 ## Install
 
 ```bash
-git clone https://github.com/YOURNAME/oyhub && cd oyhub
+git clone https://github.com/Asanovichoff/oyhub && cd oyhub
 python3 -m oyhub doctor   # health check
 ```
 
